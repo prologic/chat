@@ -4,10 +4,16 @@ A simple terminal chat with e2e twofish or blowfish encryption over UDP
 
 ## Features
 
-- [ ] Diffie Hellman key exchange
-- [ ] Blowfish and Twofish e2e encryption
-- [ ] UDP transport with p2p support
-- [ ] Simple Terminal UI
+- [X] Diffie Hellman key exchange
+- [X] Blowfish and Twofish e2e encryption
+- [X] UDP transport
+- [X] Simple Terminal UI
+
+Some future improvements:
+
+- [ ] Better Terminal UI using [tview](https://github.com/rivo/tview)
+- [ ] p2p support with UDP hole punching
+- [ ] Option to use blowfish or other symetric encryption algorithms
 
 ## Installation
 
