@@ -49,7 +49,14 @@ func main() {
 	p := NewPeer(username, bind, peer)
 
 	p.OnMessage(func(msg *Message) error {
-		fmt.Printf("<%s> %s\n", msg.User, msg.Data)
+		switch msg.Kind {
+		case MessageNormal:
+			fmt.Printf("<%s> %s\n", msg.User, msg.Data)
+		case MessageHello:
+			p.SetPeer(msg.Addr)
+		default:
+			log.Errorf("invalu message type %d", msg.Kind)
+		}
 		return nil
 	})
 
@@ -66,7 +73,10 @@ func main() {
 		if err != nil {
 			log.Errorf("error reading input: %s", err)
 		} else {
-			p.SendMessage(strings.TrimSpace(msg))
+			msg = strings.TrimSpace(msg)
+			if msg != "" {
+				p.SendMessage(msg)
+			}
 		}
 	}
 }

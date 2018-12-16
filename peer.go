@@ -45,6 +45,10 @@ func (p *Peer) Start() {
 
 	p.conn = conn
 
+	if p.peer != "" {
+		p.outbox <- &Message{Kind: MessageHello}
+	}
+
 	go p.loop()
 	go p.readpump()
 	go p.writepump()
@@ -82,13 +86,18 @@ func (p *Peer) readpump() {
 		if err != nil {
 			log.Errorf("error reading from peer %s: %s", addr, err)
 		} else {
-			p.peer = addr.String()
 			msg, err := DecodeMessage(buf[:n])
 			if err == nil {
+				msg.Addr = addr.String()
 				p.inbox <- msg
 			}
 		}
 	}
+}
+
+// SetPeer ...
+func (p *Peer) SetPeer(peer string) {
+	p.peer = peer
 }
 
 // OnMessage ...

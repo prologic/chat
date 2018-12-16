@@ -12,13 +12,17 @@ type MessageType int
 const (
 	// MessageNormal standard messages exchanged between users
 	MessageNormal MessageType = iota
+
+	// MessageHello MessageType
+	MessageHello
 )
 
 // Message ...
 type Message struct {
-	Kind int    `json:"kind"`
-	User string `json:"user"`
-	Data string `json:"data"`
+	Kind MessageType `json:"kind"`
+	Addr string      `json:"addr"`
+	User string      `json:"user"`
+	Data string      `json:"data"`
 }
 
 // DecodeMessage ...
