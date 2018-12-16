@@ -4,7 +4,7 @@ A simple terminal chat with e2e twofish or blowfish encryption over UDP
 
 ## Features
 
--[ ] Diffie Hellman key exchange
+- [ ] Diffie Hellman key exchange
 - [ ] Blowfish and Twofish e2e encryption
 - [ ] UDP transport with p2p support
 - [ ] Simple Terminal UI
