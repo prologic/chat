@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"io"
@@ -53,7 +54,16 @@ func main() {
 		case MessageNormal:
 			fmt.Printf("<%s> %s\n", msg.User, msg.Data)
 		case MessageHello:
+			log.Infof("hello from %s", msg.Addr)
 			p.SetPeer(msg.Addr)
+		case MessageKey:
+			log.Infof("public key %d bytes from %s: %s", len(msg.Data), msg.Data)
+			data, err := base64.StdEncoding.DecodeString(msg.Data)
+			if err != nil {
+				log.Errorf("error decoding message data: %s", err)
+			} else {
+				p.SetKey(data)
+			}
 		default:
 			log.Errorf("invalu message type %d", msg.Kind)
 		}

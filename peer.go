@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/base64"
 	"net"
+
+	"github.com/monnand/dhkx"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -14,6 +17,10 @@ type Peer struct {
 	bind     string
 	peer     string
 	username string
+
+	group      *dhkx.DHGroup
+	privateKey *dhkx.DHKey
+	sessionKey []byte
 
 	conn net.PacketConn
 
@@ -45,8 +52,33 @@ func (p *Peer) Start() {
 
 	p.conn = conn
 
+	// Get a group. Use the default one would be enough.
+	g, err := dhkx.GetGroup(0)
+	if err != nil {
+		log.Errorf("error getting group: %s", err)
+	} else {
+		p.group = g
+
+		// Generate a private key from the group.
+		// Use the default random number generator.
+		priv, err := g.GeneratePrivateKey(nil)
+		if err != nil {
+			log.Errorf("error generating private key: %s", err)
+		} else {
+			p.privateKey = priv
+		}
+	}
+
 	if p.peer != "" {
 		p.outbox <- &Message{Kind: MessageHello}
+
+		// Get the public key from the private key.
+		pub := p.privateKey.Bytes()
+
+		// Send the public key to Bob.
+		msg := base64.StdEncoding.EncodeToString(pub)
+		log.Infof("public key %d bytes: %s", len(msg), msg)
+		p.outbox <- &Message{Kind: MessageKey, Data: msg}
 	}
 
 	go p.loop()
@@ -63,6 +95,7 @@ func (p *Peer) SendMessage(msg string) error {
 func (p *Peer) writepump() {
 	for p.running {
 		msg := <-p.outbox
+		msg.User = p.username
 		raddr, err := net.ResolveUDPAddr("udp4", p.peer)
 		if err != nil {
 			log.Errorf("error resolving peer address %s: %s", peer, err)
@@ -91,6 +124,33 @@ func (p *Peer) readpump() {
 				msg.Addr = addr.String()
 				p.inbox <- msg
 			}
+		}
+	}
+}
+
+// SetKey ...
+func (p *Peer) SetKey(s []byte) {
+	if len(p.sessionKey) == 0 {
+		// Get the public key from the private key.
+		pub := p.privateKey.Bytes()
+
+		// Send the public key to Bob.
+		msg := base64.StdEncoding.EncodeToString(pub)
+		log.Infof("public key %d bytes: %s", len(msg), msg)
+		p.outbox <- &Message{Kind: MessageKey, Data: msg}
+
+		pubKey := dhkx.NewPublicKey(s)
+
+		// Compute the key
+		k, err := p.group.ComputeKey(pubKey, p.privateKey)
+		if err != nil {
+			log.Errorf("error computing key: %s", err)
+		} else {
+			// Get the key in the form of []byte
+			key := k.Bytes()
+
+			p.sessionKey = key
+			log.Infof("sessionKey: %v", key)
 		}
 	}
 }

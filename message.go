@@ -15,6 +15,9 @@ const (
 
 	// MessageHello MessageType
 	MessageHello
+
+	// MessageKey MessageType
+	MessageKey
 )
 
 // Message ...
