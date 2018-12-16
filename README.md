@@ -4,10 +4,10 @@ A simple terminal chat.
 
 ## Features
 
-- Diffie Hellman key exchange
-- Blowfish and Twofish e2e encryption
-- UDP transport with p2p support
-- Simple Terminal UI
+- [ ] Diffie Hellman key exchange
+- [ ] Blowfish and Twofish e2e encryption
+- [ ] UDP transport with p2p support
+- [ ] Simple Terminal UI
 
 ## Installation
 
