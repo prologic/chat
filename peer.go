@@ -78,7 +78,6 @@ func (p *Peer) Start() {
 
 		// Send the public key to Bob.
 		msg := base64.StdEncoding.EncodeToString(pub)
-		log.Infof("public key %d bytes: %s", len(msg), msg)
 		p.outbox <- &Message{Kind: MessageKey, Data: msg}
 	}
 
@@ -149,7 +148,6 @@ func (p *Peer) SetKey(s []byte) {
 
 		// Send the public key to Bob.
 		msg := base64.StdEncoding.EncodeToString(pub)
-		log.Infof("public key %d bytes: %s", len(msg), msg)
 		p.outbox <- &Message{Kind: MessageKey, Data: msg}
 
 		pubKey := dhkx.NewPublicKey(s)
@@ -164,7 +162,6 @@ func (p *Peer) SetKey(s []byte) {
 			key := k.Bytes()[:32]
 
 			p.sessionKey = key
-			log.Infof("sessionKey: %v", key)
 
 			cipher, err := twofish.NewCipher(key)
 			if err != nil {
