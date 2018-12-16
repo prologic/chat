@@ -1,11 +1,13 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
 	"net"
-	"os"
+
+	log "github.com/sirupsen/logrus"
 )
+
+// MessageHandler ...
+type MessageHandler func(msg *Message) (err error)
 
 // Peer ...
 type Peer struct {
@@ -18,6 +20,7 @@ type Peer struct {
 	running bool
 	outbox  chan *Message
 	inbox   chan *Message
+	handler MessageHandler
 }
 
 // NewPeer ...
@@ -33,44 +36,41 @@ func NewPeer(username, bind, peer string) *Peer {
 	}
 }
 
-// Run ...
-func (p *Peer) Run() {
-	//raddr, err := net.ResolveUDPAddr("udp4", p.peer)
-	//checkError(err, "client")
-
+// Start ...
+func (p *Peer) Start() {
 	conn, err := net.ListenPacket("udp4", p.bind)
-	checkError(err, "main")
-	p.conn = conn
-	defer p.conn.Close()
-
-	if p.peer != "" {
-		p.SendMessage(p.peer, "hello")
+	if err != nil {
+		log.Fatalf("error binding to interface %s: %s", p.bind, err)
 	}
 
-	go p.printMessage()
+	p.conn = conn
+
+	go p.loop()
 	go p.readpump()
 	go p.writepump()
-
-	p.getMessage()
 }
 
 // SendMessage ...
-func (p *Peer) SendMessage(peer, msg string) {
-	raddr, err := net.ResolveUDPAddr("udp4", peer)
-	checkError(err, "client.SendMessage")
-
-	m := Message{User: p.username, Data: msg}
-	_, err = p.conn.WriteTo(m.Bytes(), raddr)
-	checkError(err, "client.SendMessage")
+func (p *Peer) SendMessage(msg string) error {
+	p.outbox <- &Message{User: p.username, Data: msg}
+	return nil
 }
 
 func (p *Peer) writepump() {
 	for p.running {
 		msg := <-p.outbox
 		raddr, err := net.ResolveUDPAddr("udp4", p.peer)
-		checkError(err, "client")
-		_, err = p.conn.WriteTo(msg.Bytes(), raddr)
-		checkError(err, "sendMessage")
+		if err != nil {
+			log.Errorf("error resolving peer address %s: %s", peer, err)
+		} else {
+			b, err := msg.Bytes()
+			if err == nil {
+				_, err = p.conn.WriteTo(b, raddr)
+				if err != nil {
+					log.Errorf("error sending messages to peer %s: %s", p.peer, err)
+				}
+			}
+		}
 	}
 }
 
@@ -79,26 +79,32 @@ func (p *Peer) readpump() {
 
 	for p.running {
 		n, addr, err := p.conn.ReadFrom(buf)
-		p.peer = addr.String()
-		checkError(err, "readpump")
-		msg := DecodeMessage(buf[:n])
-		p.inbox <- msg
+		if err != nil {
+			log.Errorf("error reading from peer %s: %s", addr, err)
+		} else {
+			p.peer = addr.String()
+			msg, err := DecodeMessage(buf[:n])
+			if err == nil {
+				p.inbox <- msg
+			}
+		}
 	}
 }
 
-func (p *Peer) getMessage() {
-	reader := bufio.NewReader(os.Stdin)
-	for p.running {
-		fmt.Print(">>> ")
-		msg, err := reader.ReadString('\n')
-		checkError(err, "getMessage")
-		p.outbox <- &Message{User: p.username, Data: msg}
-	}
+// OnMessage ...
+func (p *Peer) OnMessage(handler MessageHandler) {
+	p.handler = handler
 }
 
-func (p *Peer) printMessage() {
+func (p *Peer) loop() {
 	for p.running {
 		msg := <-p.inbox
-		fmt.Printf("<%s> %s\n", msg.User, msg.Data)
+		if p.handler != nil {
+			err := p.handler(msg)
+			if err != nil {
+				log.Errorf("error handling message %v: %s", msg, err)
+			}
+
+		}
 	}
 }

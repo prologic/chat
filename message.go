@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // MessageType ...
@@ -20,16 +22,20 @@ type Message struct {
 }
 
 // DecodeMessage ...
-func DecodeMessage(b []byte) *Message {
-	var m Message
-	err := json.Unmarshal(b, &m)
-	checkError(err, "DecodeMessage")
-	return &m
+func DecodeMessage(b []byte) (msg *Message, err error) {
+	err = json.Unmarshal(b, &msg)
+	if err != nil {
+		log.Errorf("error decoding messages: %s", err)
+	}
+	return
 }
 
 // Bytes ...
-func (m *Message) Bytes() []byte {
+func (m *Message) Bytes() ([]byte, error) {
 	b, err := json.Marshal(m)
-	checkError(err, "Message.Bytes()")
-	return b
+	if err != nil {
+		log.Errorf("error encoding message: %s", err)
+		return []byte{}, err
+	}
+	return b, nil
 }
