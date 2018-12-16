@@ -5,8 +5,8 @@ import (
 	"net"
 
 	"github.com/monnand/dhkx"
-
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/twofish"
 )
 
 // MessageHandler ...
@@ -18,6 +18,7 @@ type Peer struct {
 	peer     string
 	username string
 
+	cipher     Cipher
 	group      *dhkx.DHGroup
 	privateKey *dhkx.DHKey
 	sessionKey []byte
@@ -88,7 +89,14 @@ func (p *Peer) Start() {
 
 // SendMessage ...
 func (p *Peer) SendMessage(msg string) error {
-	p.outbox <- &Message{User: p.username, Data: msg}
+	ciphertext, err := encrypt(p.cipher, []byte(msg))
+	if err != nil {
+		log.Errorf("error encrypting message: %s", err)
+		return err
+	}
+
+	data := base64.StdEncoding.EncodeToString(ciphertext)
+	p.outbox <- &Message{User: p.username, Data: data}
 	return nil
 }
 
@@ -128,6 +136,11 @@ func (p *Peer) readpump() {
 	}
 }
 
+// SetCipher ...
+func (p *Peer) SetCipher(cipher Cipher) {
+	p.cipher = cipher
+}
+
 // SetKey ...
 func (p *Peer) SetKey(s []byte) {
 	if len(p.sessionKey) == 0 {
@@ -147,10 +160,17 @@ func (p *Peer) SetKey(s []byte) {
 			log.Errorf("error computing key: %s", err)
 		} else {
 			// Get the key in the form of []byte
-			key := k.Bytes()
+			// We can only use 32bytes of the key (twofish limits)
+			key := k.Bytes()[:32]
 
 			p.sessionKey = key
 			log.Infof("sessionKey: %v", key)
+
+			cipher, err := twofish.NewCipher(key)
+			if err != nil {
+				log.Fatalf("error initializing cipher: %s", err)
+			}
+			p.cipher = cipher
 		}
 	}
 }
@@ -169,11 +189,25 @@ func (p *Peer) loop() {
 	for p.running {
 		msg := <-p.inbox
 		if p.handler != nil {
+			// Only decrypt normal messages
+			if msg.Kind == MessageNormal {
+				data, err := base64.StdEncoding.DecodeString(msg.Data)
+				if err != nil {
+					log.Errorf("error decoding message data: %s", err)
+				} else {
+					plaintext, err := decrypt(p.cipher, data)
+					if err != nil {
+						log.Errorf("error decrypting message: %s", err)
+					} else {
+						msg.Data = string(plaintext)
+					}
+				}
+			}
+
 			err := p.handler(msg)
 			if err != nil {
 				log.Errorf("error handling message %v: %s", msg, err)
 			}
-
 		}
 	}
 }
