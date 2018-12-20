@@ -2,6 +2,8 @@
 
 A simple terminal chat with e2e twofish or blowfish encryption over UDP
 
+![Sample Dession](/screenshot.png?raw=true "Ssample Session")
+
 ## Features
 
 - [X] Diffie Hellman key exchange
